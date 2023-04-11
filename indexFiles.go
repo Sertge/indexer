@@ -29,7 +29,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = filepath.Walk("./enron_mail_20110402/maildir", func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(fmt.Sprintf("%v/%v/maildir", os.Args[1], os.Args[2]), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -44,7 +44,7 @@ func main() {
 		}
 
 		paths := strings.Split(path, "\\")
-		if len(paths) == 5 {
+		if len(paths) >= 5 {
 			postOnIndex(path, content)
 		} else {
 			fmt.Println("Not uploaded: ", paths)
@@ -165,24 +165,30 @@ func postOnIndex(path string, content []byte) error {
 
 		if err != nil {
 			fmt.Println("Failing file at mail.readMessage: ", paths)
-			log.Fatal(err)
+			return nil
+			// log.Fatal(err)
 		}
 		mailBody, err := io.ReadAll(contentAsMail.Body)
 		if err != nil {
 			fmt.Println("Failing file at io.ReadAll: ", paths)
-			log.Fatal(err)
+			fmt.Println(err)
+			return nil
+			// log.Fatal(err)
 		}
 		mailDate, err := mail.ParseDate(contentAsMail.Header.Get("Date"))
 		if err != nil {
 			fmt.Println("Failing file at mail.ParseDate: ", paths)
-			log.Fatal(err)
+			return nil
+			// log.Fatal(err)
 		}
+
+		routeToFile := strings.Join(paths[3:len(paths)-2], "/")
 
 		mailPosting := &MailDoc{
 			ID:       docID,
-			Username: paths[3],
+			Username: paths[2],
 			Content:  string(mailBody),
-			Folder:   paths[4],
+			Folder:   routeToFile,
 			Date:     mailDate,
 		}
 		jsonMailPosting, _ := json.Marshal(mailPosting)
@@ -195,9 +201,6 @@ func postOnIndex(path string, content []byte) error {
 			log.Fatal(postErr)
 		}
 		if postRes.StatusCode != http.StatusOK {
-			// fmt.Println(string(mailBody))
-
-			fmt.Println("Failing Body", postRequest.Body)
 			fmt.Println(paths)
 		}
 		defer postRes.Body.Close()
